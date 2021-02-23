@@ -4,8 +4,7 @@
 #include <M5Stack.h>
 #include "secrets.h"
 
-
-#define DISPOSITIVO "enrique"    //Dispositivo que identifica al publicar en MQTT
+#define DISPOSITIVO "enrique"      //Dispositivo que identifica al publicar en MQTT
 #define RAIZ "cursocefire/m5stack" //raiz de la ruta donde va a publicar
 
 WiFiClient espClient;
@@ -25,6 +24,12 @@ String publish_60sec_string = topic_root + "/dato60s";
 const char *publish_60sec = publish_60sec_string.c_str();
 String publish_reset_string = topic_root + "/reset";
 const char *publish_reset = publish_reset_string.c_str();
+String publish_A_string = topic_root + "/A";
+const char *publish_A = publish_A_string.c_str();
+String publish_B_string = topic_root + "/B";
+const char *publish_B = publish_B_string.c_str();
+String publish_C_string = topic_root + "/C";
+const char *publish_C = publish_C_string.c_str();
 String subs_led_string = topic_root + "/led";
 const char *subs_led = subs_led_string.c_str();
 String subs_text_string = topic_root + "/text";
@@ -32,27 +37,39 @@ const char *subs_text = subs_text_string.c_str();
 
 void callback(char *topic, byte *payload, unsigned int length)
 {
+  String mensaje = "";
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
   for (int i = 0; i < length; i++)
   {
     Serial.print((char)payload[i]);
+    mensaje+=(char)payload[i];
   }
   Serial.println();
+
+  if (String(topic) == String(subs_text))
+  {
+    M5.Lcd.setTextColor(RED);
+    M5.Lcd.setTextSize(3);
+    M5.Lcd.setCursor(3, 90);
+    M5.Lcd.fillRect(0, 90, 320, 50, BLACK);
+    M5.Lcd.setCursor(3, 90);
+    M5.Lcd.println(mensaje);
+  }
 
   if (String(topic) == String(subs_led))
   {
     // Switch on the LED if an 1 was received as first character
     if ((char)payload[0] == '1')
     {
-      //digitalWrite(BUILTIN_LED, LOW); // Turn the LED on (Note that LOW is the voltage level
-      // but actually the LED is on; this is because
-      // it is active low on the ESP-01)
+      M5.Lcd.drawCircle(270, 170, 20, RED);
+      M5.Lcd.fillCircle(270, 170, 20, RED);
     }
     else
     {
-      //digitalWrite(LED_BUILTIN, HIGH); // Turn the LED off by making the voltage HIGH
+      M5.Lcd.drawCircle(270, 170, 20, GREEN);
+      M5.Lcd.fillCircle(270, 170, 20, GREEN);
     }
   }
 }
@@ -112,19 +129,26 @@ void reconnect()
   }
 }
 
-void setup() {
+void setup()
+{
   M5.begin(true, false, true);
   M5.Power.begin();
 
   M5.Lcd.clear(BLACK);
   M5.Lcd.setTextColor(YELLOW);
   M5.Lcd.setTextSize(2);
-  M5.Lcd.setCursor(65, 10);
-  M5.Lcd.println("Button example");
+  M5.Lcd.setCursor(3, 10);
+  M5.Lcd.println("MQTT Button Control");
   M5.Lcd.setCursor(3, 35);
-  M5.Lcd.println("Press button B for 700ms");
-  M5.Lcd.println("to clear screen.");
+  M5.Lcd.println("Press button A, B or C to send message");
   M5.Lcd.setTextColor(RED);
+  M5.Lcd.setTextSize(3);
+  M5.Lcd.setCursor(60, 210);
+  M5.Lcd.print("A");
+  M5.Lcd.setCursor(150, 210);
+  M5.Lcd.print("B");
+  M5.Lcd.setCursor(245, 210);
+  M5.Lcd.print("C");
 
   Serial.begin(9600);
   setup_wifi();
@@ -132,26 +156,25 @@ void setup() {
   client.setCallback(callback);
 }
 
-void loop() {
+void loop()
+{
   M5.update();
 
   // if you want to use Releasefor("was released for"), use .wasReleasefor(int time) below
   if (M5.BtnA.wasReleased() || M5.BtnA.pressedFor(1000, 200))
   {
-    M5.Lcd.print('A');
+    //M5.Lcd.print('A');
+    client.publish(publish_A, "press");
   }
   else if (M5.BtnB.wasReleased() || M5.BtnB.pressedFor(1000, 200))
   {
-    M5.Lcd.print('B');
+    //M5.Lcd.print('B');
+    client.publish(publish_B, "press");
   }
   else if (M5.BtnC.wasReleased() || M5.BtnC.pressedFor(1000, 200))
   {
-    M5.Lcd.print('C');
-  }
-  else if (M5.BtnB.wasReleasefor(700))
-  {
-    M5.Lcd.clear(BLACK);
-    M5.Lcd.setCursor(0, 0);
+    //M5.Lcd.print('C');
+    client.publish(publish_C, "press");
   }
 
   if (!client.connected())
